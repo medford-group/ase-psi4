@@ -39,17 +39,25 @@ print(atoms.get_forces())
 
 Here is a list of the things you can pass into the `Psi4` ase calculator with the corresponding default value:
 
-basis: "aug-cc-pvtz"
-method: "hf"
+basis: "aug-cc-pvtz"method: "hf"
+
 D\_CONVERGENCE: 1e-12
+
 E\_CONVERGENCE: 1e-12
+
 DFT\_BLOCK\_MAX\_POINTS: 500000
+
 DFT\_BLOCK\_MIN\_POINTS: 100000
 MAXITER: 500
+
 charge: 0
+
 multiplicity: 1
+
 symmetry:'c1'
+
 SAVE\_JK: True
+
 
 
 have fun!!
