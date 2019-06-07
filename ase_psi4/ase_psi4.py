@@ -38,7 +38,7 @@ class Psi4(Calculator):
                   'MAXITER': 500,
                   'charge': 0,
                   'multiplicity': 1,
-                  'symmetry':'c1'
+                  'symmetry':'c1',
 #                  'DFT_SPHERICAL_POINTS': 302,
 #                  'DFT_RADIAL_POINTS':    75,
                   "SAVE_JK": True, }
