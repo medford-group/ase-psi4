@@ -1,23 +1,23 @@
 """
 author: Ben Comer (Georgia Tech)
 """
-from ase.calculators.calculator import Calculator
+from ase.calculators.calculator import Calculator, all_properties, all_changes
 #from ase.utils.timing import Timer
-from .utilities import psi4_to_atoms
+#from .utilities import psi4_to_atoms
 import numpy as np
 from ase.units import Bohr, Hartree
-#import multiprocessing
-import threading
+import multiprocessing
+#import threading
 import psi4
 import os
 
 
-all_properties = ['energy', 'forces', 'stress', 'dipole',
-                  'charges', 'magmom', 'magmoms', 'free_energy']
+#all_properties = ['energy', 'forces', 'stress', 'dipole',
+#                  'charges', 'magmom', 'magmoms', 'free_energy']
 
 
-all_changes = ['positions', 'numbers', 'cell', 'pbc',
-               'initial_charges', 'initial_magmoms']
+#all_changes = ['positions', 'numbers', 'cell', 'pbc',
+#               'initial_charges', 'initial_magmoms']
 
 class Psi4(Calculator):
     """
@@ -36,6 +36,7 @@ class Psi4(Calculator):
                   'MAXITER': 500,
                   'charge': 0,
                   'multiplicity': 1,
+                  'reference': None,
 #                  'DFT_SPHERICAL_POINTS': 302,
 #                  'DFT_RADIAL_POINTS':    75,
                   "SAVE_JK": True, }
@@ -55,6 +56,7 @@ class Psi4(Calculator):
         self.set(**kwargs)
         self.psi4 = psi4
         #self.psi4.set_num_threads(threading.active_count())
+        self.psi4.set_num_threads(multiprocessing.cpu_count()-1)
 
     def calculate(self, atoms=None, properties=['energy'],
                   system_changes=all_changes, symmetry = 'c1'):
@@ -104,7 +106,9 @@ class Psi4(Calculator):
         # Set up the method
         method = self.parameters['method']
         basis = self.parameters['basis']
-        psi4.set_options({'reference': 'uhf'}) 
+        if self.parameters['reference'] is not None:
+            psi4.set_options({'reference': 
+                              self.parameters['reference']}) 
         # Do the calculations
         for item in properties:
             if item == 'energy':
@@ -113,6 +117,9 @@ class Psi4(Calculator):
                 # convert to eV
                 self.results['energy'] = energy * Hartree
             if item == 'forces':
+                energy = self.psi4.energy('{}/{}'.format(method,basis),
+                                      molecule = molecule, MAXITER = 1000)
+                self.results['energy'] = energy * Hartree
                 grad = self.psi4.driver.gradient('{}/{}'.format(method,basis),
                                                  return_wfn=False)
                 # convert to eV/A
