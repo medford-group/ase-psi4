@@ -51,7 +51,7 @@ class Psi4(Calculator):
         self.psi4 = psi4
         #self.psi4.set_num_threads(threading.active_count())
         if 'num_threads' in kwargs:
-            if kwargs['num_threads'] = 'max':
+            if kwargs['num_threads'] == 'max':
                 self.psi4.set_num_threads(multiprocessing.cpu_count())
             elif  type(kwargs['num_threads']) == int:
                 self.psi4.set_num_threads(kwargs['num_threads'])
