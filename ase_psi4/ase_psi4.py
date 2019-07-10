@@ -9,7 +9,6 @@ from ase.units import Bohr, Hartree
 import multiprocessing
 #import threading
 import psi4
-import os
 
 
 #all_properties = ['energy', 'forces', 'stress', 'dipole',
@@ -22,7 +21,10 @@ import os
 class Psi4(Calculator):
     """
     An ase calculator for the popular open source Q-chem code
-    psi4
+    psi4. This is really rudimentary
+
+    you can always use the in-built psi4 module through:
+    calc.psi4
     """
     implemented_properties = ['energy', 'forces']
     
@@ -37,6 +39,7 @@ class Psi4(Calculator):
                   'charge': 0,
                   'multiplicity': 1,
                   'reference': None,
+                  'symmetry':'c1',
 #                  'DFT_SPHERICAL_POINTS': 302,
 #                  'DFT_RADIAL_POINTS':    75,
                   "SAVE_JK": True, }
@@ -125,28 +128,4 @@ class Psi4(Calculator):
                 # convert to eV/A
                 # also note that the gradient is -1 * forces
                 self.results['forces'] = -1 * np.array(grad) * Hartree * Bohr
-
-def atoms_to_psi4(atoms, symmetry = 'c1'):
-    """
-    a function that takes in an atoms object and returns
-    the psi4 input representation of that atoms object
-
-    inputs:
-        atoms (ASE atoms object):
-            an ASE atoms object of the system you'd like
-            to convert to psi4 format
-
-    returns:
-        psi4 (dict):
-            the psi4 representation of the atoms object
-    """
-    result = ''
-    for atom in atoms:
-        temp = '{}\t{}\t{}\t{}\n'.format(atom.symbol, \
-        atom.position[0],atom.position[1], \
-        atom.position[2])
-        result += temp
-    result += '\t symmetry {}\n'.format(symmetry)
-    result += 'units angstrom\n'
-    return self.psi4.geometry(result)
 
