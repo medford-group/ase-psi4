@@ -3,6 +3,7 @@ authors: Ben Comer (Georgia Tech), Xiangyun (Ray) Lei (Georgia Tech)
 
 """
 from ase.calculators.calculator import Calculator, all_properties, all_changes
+from ase.calculators.calculator import InputError, CalculationFailed, SCFError 
 import numpy as np
 from ase.units import Bohr, Hartree
 import multiprocessing
@@ -21,12 +22,13 @@ class Psi4(Calculator):
     
     default_parameters = {
                   "basis": "aug-cc-pvtz",
+                  "num_threads": None,
                   "method": "hf",
+                  "memory": None,
                   "D_CONVERGENCE":1e-12,
                   "E_CONVERGENCE":1e-12,
                   'DFT_BLOCK_MAX_POINTS': 500000,
                   'DFT_BLOCK_MIN_POINTS': 100000,
-                  'MAXITER': 500,
                   'charge': 0,
                   'multiplicity': 1,
                   'reference': None,
@@ -38,23 +40,54 @@ class Psi4(Calculator):
                  label='psi4-calc', atoms=None, command=None,
                  **kwargs):
         self.results = {}  # calculated properties (energy, forces, ...)
-        self.parameters = None  # calculational parameters
 
-        if self.parameters is None:
-            # Use default parameters if they were not read from file:
-            self.parameters = self.get_default_parameters()
+        # Use default parameters if they were not read from file:
+        self.parameters = self.get_default_parameters()
 
         self.name = 'psi4'
         self.atoms = atoms
         self.set_label(label)
         self.set(**kwargs)
         self.psi4 = psi4
-        #self.psi4.set_num_threads(threading.active_count())
-        if 'num_threads' in kwargs:
-            if kwargs['num_threads'] == 'max':
-                self.psi4.set_num_threads(multiprocessing.cpu_count())
-            elif  type(kwargs['num_threads']) == int:
-                self.psi4.set_num_threads(kwargs['num_threads'])
+        # perform initial setup of psi4 python API
+        self.set_psi4(atoms = atoms)
+
+    def set_psi4(self, atoms = None):
+        """
+        This function sets the imported psi4 module to the settings the user 
+        defines
+        """
+        # Input spin settings
+        if self.parameters['reference'] is not None:
+            self.psi4.set_options({'reference':
+                                   self.parameters['reference']})
+        # memory
+        if self.parameters['memory'] is not None:
+            self.psi4.set_memory(self.parameters['memory'])
+
+        if self.parameters['num_threads'] == 'max':
+            self.psi4.set_num_threads(multiprocessing.cpu_count())
+        elif  type(self.parameters['num_threads']) == int:
+            self.psi4.set_num_threads(kwargs['num_threads'])
+
+        if atoms is None:
+            if self.atoms is None:
+                return None
+            else:
+                atoms = self.atoms 
+        # Generate the atomic input
+        result = ''
+        for atom in atoms:
+            temp = '{}\t{}\t{}\t{}\n'.format(atom.symbol, \
+            atom.position[0],atom.position[1], \
+            atom.position[2])
+            result += temp
+        result += '\t symmetry {}\n'.format(self.parameters['symmetry'])
+        result += 'units angstrom\n'
+        result += '{} {}'.format(self.parameters['charge'],
+                                 self.parameters['multiplicity'])
+        self.psi4.core.set_output_file(self.label + '.out', False)
+        self.molecule = psi4.geometry(result)
 
     def calculate(self, atoms=None, properties=['energy'],
                   system_changes=all_changes, symmetry = 'c1'):
@@ -83,43 +116,32 @@ class Psi4(Calculator):
                             'magmoms': np.zeros(len(atoms))}
 
         """
-        Calculator.calculate(self,atoms=atoms)
+        Calculator.calculate(self, atoms = atoms)
         if atoms == None:
-            atoms = self.atoms 
-        # Generate the atomic input
-        result = ''
-        for atom in atoms:
-            temp = '{}\t{}\t{}\t{}\n'.format(atom.symbol, \
-            atom.position[0],atom.position[1], \
-            atom.position[2])
-            result += temp
-        result += '\t symmetry {}\n'.format(symmetry)
-        result += 'units angstrom\n'
-        result += '{} {}'.format(self.parameters['charge'],
-                                 self.parameters['multiplicity'])
-        self.psi4.core.set_output_file(self.label + '.out', False)
-        molecule = psi4.geometry(result)
-        #molecule.charge(1)
+            if self.atoms is None:
+                raise InputError('An atoms object must be provided to perform a calculation')
+            else:
+                atoms = self.atoms 
+        # this inputs all the settings into psi4
+        self.set_psi4(atoms = atoms)
 
         # Set up the method
         method = self.parameters['method']
         basis = self.parameters['basis']
-        if self.parameters['reference'] is not None:
-            psi4.set_options({'reference': 
-                              self.parameters['reference']}) 
+
         # Do the calculations
         for item in properties:
             if item == 'energy':
                 energy = self.psi4.energy('{}/{}'.format(method,basis), 
-                                      molecule = molecule)
+                                      molecule = self.molecule,)
                 # convert to eV
                 self.results['energy'] = energy * Hartree
             if item == 'forces':
                 energy = self.psi4.energy('{}/{}'.format(method,basis),
-                                      molecule = molecule, MAXITER = 1000)
+                                      molecule = self.molecule,)
                 self.results['energy'] = energy * Hartree
                 grad = self.psi4.driver.gradient('{}/{}'.format(method,basis),
-                                                 return_wfn=False)
+                                                 return_wfn=False,)
                 # convert to eV/A
                 # also note that the gradient is -1 * forces
                 self.results['forces'] = -1 * np.array(grad) * Hartree * Bohr
