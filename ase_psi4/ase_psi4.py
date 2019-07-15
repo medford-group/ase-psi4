@@ -46,7 +46,11 @@ class Psi4(Calculator):
 
         self.name = 'psi4'
         self.atoms = atoms
-        self.set_label(label)
+        if os.sep in label:
+            self.directory = os.path.join(label.split(os.sep)[:-1])
+            self.label = label.split(os.sep)[-1]
+        else:
+            self.set_label(label)
         self.set(**kwargs)
         self.psi4 = psi4
         # perform initial setup of psi4 python API
@@ -70,6 +74,33 @@ class Psi4(Calculator):
         elif  type(self.parameters['num_threads']) == int:
             self.psi4.set_num_threads(kwargs['num_threads'])
 
+        if 'kpts' in self.parameters:
+            import warnings
+            warnings.warn('psi4 is a non-periodic code, and thus does not '
+                          'require k-points. This arguement will be ignored')
+
+        # deal with some ASE specific inputs
+        if 'xc' in self.parameters:
+            if 'method' in self.parameters:
+                if self.parameters['method'].lower() == 'dft':
+                    pass
+                elif self.parameters['method'] == self.parameters['xc']:
+                    pass
+                else:
+                    raise InputError('arguements for both `method` and `xc` were '
+                                     'entered. please enter only one of these. '
+                                     'The same arguments may be entered for both')
+            else:
+                self.parameters['method'] = self.parameters['xc']
+        if 'nbands' in self.parameters:
+            warnings.warn('psi4 does is a quantum chemistry program, and thus does '
+                          'not operate on the basis of bands, please select a basis'
+                          ' set instead. This input is ignored.')
+        if 'smearing' in self.parameters:
+            warnings.warn('Finite temperature DFT is not implemented in psi4 currently,'
+                          ' thus a smearing argument cannot be utilized. This argument'
+                          ' is ignored')
+
         if atoms is None:
             if self.atoms is None:
                 return None
@@ -86,7 +117,8 @@ class Psi4(Calculator):
         result += 'units angstrom\n'
         result += '{} {}'.format(self.parameters['charge'],
                                  self.parameters['multiplicity'])
-        self.psi4.core.set_output_file(self.label + '.out', False)
+        self.psi4.core.set_output_file(os.path.join(self.directory, self.label + '.out'),
+                                       False)
         self.molecule = psi4.geometry(result)
 
     def calculate(self, atoms=None, properties=['energy'],
@@ -121,7 +153,9 @@ class Psi4(Calculator):
             if self.atoms is None:
                 raise InputError('An atoms object must be provided to perform a calculation')
             else:
-                atoms = self.atoms 
+                atoms = self.atoms
+        if atoms.get_initial_magnetic_moments().all() != 0:
+            self.parameters['reference'] = 'uhf'
         # this inputs all the settings into psi4
         self.set_psi4(atoms = atoms)
 
