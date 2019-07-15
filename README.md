@@ -1,10 +1,15 @@
 # ase-psi4
 
-A simple ase calculator for Psi4. You can load it and instantiate it the way you would any other ase calculator. The implemented methods are `get_forces` and `get_potential_energy`. You can also access the in built psi4 module with `calc.psi4`. This was thrown together rather quickly, so I make no guarantees about it's functionality
+A simple ase calculator for [psi4](http://www.psicode.org/psi4manual/master/index.html). You can load it and instantiate it the way you would any other ase calculator. The implemented methods are `get_forces` and `get_potential_energy`. You can also access the in built psi4 module with `calc.psi4`. This was thrown together rather quickly, so I make no guarantees about it's functionality
 
 ## Installation
+You'll need psi4 to use this package, the easiest way to get that is with conda:
 
-You can install it simply with pip:
+```
+conda install -c psi4 psi4 
+```
+
+You can install this package quite simply with pip:
 
 ```
 pip install git+https://github.com/medford-group/ase-psi4
