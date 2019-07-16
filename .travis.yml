@@ -36,7 +36,7 @@ install:
 - pip install scipy==1.0.0
 - pip install pyyaml
 - pip install ase
-- conda install --yes python=$PY -c psi4 psi4
+- conda install --yes -c psi4 python=$PY psi4
 
 
 
