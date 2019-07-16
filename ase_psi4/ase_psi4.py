@@ -3,11 +3,21 @@ authors: Ben Comer (Georgia Tech), Xiangyun (Ray) Lei (Georgia Tech)
 
 """
 from ase.calculators.calculator import Calculator, all_properties, all_changes
-from ase.calculators.calculator import InputError, CalculationFailed, SCFError 
+from ase.calculators.calculator import InputError, CalculationFailed, SCFError, ReadError 
 import numpy as np
 from ase.units import Bohr, Hartree
+from ase.db.row import atoms2dict, AtomsRow
+import warnings
 import multiprocessing
 import psi4
+import os
+import json
+import pickle
+import codecs
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 class Psi4(Calculator):
@@ -17,42 +27,49 @@ class Psi4(Calculator):
 
     you can always use the in-built psi4 module through:
     calc.psi4
+
+    xc is the generic input for whatever method you wish to use, thus
+    and quantum chemistry method implemented in psi4 can be input 
+    (i.e. ccsd(t))
     """
     implemented_properties = ['energy', 'forces']
     
     default_parameters = {
                   "basis": "aug-cc-pvtz",
                   "num_threads": None,
-                  "method": "hf",
+                  #"method": "hf",
+                  "xc": "hf",
                   "memory": None,
                   "D_CONVERGENCE":1e-12,
                   "E_CONVERGENCE":1e-12,
-                  'DFT_BLOCK_MAX_POINTS': 500000,
-                  'DFT_BLOCK_MIN_POINTS': 100000,
-                  'charge': 0,
-                  'multiplicity': 1,
+                  'charge': None,
+                  'multiplicity': None,
                   'reference': None,
                   'symmetry':'c1',
-#                  'DFT_SPHERICAL_POINTS': 302,
-#                  'DFT_RADIAL_POINTS':    75,
+                  'PSI_SCRATCH' : '.',
                   "SAVE_JK": True, }
     def __init__(self, restart=None, ignore_bad_restart=False,
                  label='psi4-calc', atoms=None, command=None,
                  **kwargs):
+        Calculator.__init__(self, restart=restart, ignore_bad_restart=ignore_bad_restart,
+                            label=label, atoms=atoms, command=command,
+                            **kwargs)
+        """
         self.results = {}  # calculated properties (energy, forces, ...)
 
         # Use default parameters if they were not read from file:
         self.parameters = self.get_default_parameters()
 
         self.name = 'psi4'
-        self.atoms = atoms
         if os.sep in label:
             self.directory = os.path.join(label.split(os.sep)[:-1])
             self.label = label.split(os.sep)[-1]
         else:
             self.set_label(label)
         self.set(**kwargs)
+        """
         self.psi4 = psi4
+        #self.atoms = atoms
         # perform initial setup of psi4 python API
         self.set_psi4(atoms = atoms)
 
@@ -61,37 +78,38 @@ class Psi4(Calculator):
         This function sets the imported psi4 module to the settings the user 
         defines
         """
+        if 'PSI_SCRATCH' in os.environ:
+            pass
+        else:
+            os.environ['PSI_SCRATCH'] = self.parameters['PSI_SCRATCH']
+
         # Input spin settings
         if self.parameters['reference'] is not None:
             self.psi4.set_options({'reference':
                                    self.parameters['reference']})
-        # memory
+        # Memory
         if self.parameters['memory'] is not None:
             self.psi4.set_memory(self.parameters['memory'])
 
+        # Threads
         if self.parameters['num_threads'] == 'max':
             self.psi4.set_num_threads(multiprocessing.cpu_count())
         elif  type(self.parameters['num_threads']) == int:
             self.psi4.set_num_threads(kwargs['num_threads'])
 
+        if self.parameters['xc'].lower() == 'lda':
+            warnings.warn('Psi4 does not have LDA implemented, SVWN will be used instead')
+            self.parameters['xc'] = 'svwn'
+
+        # deal with some ASE specific inputs
         if 'kpts' in self.parameters:
-            import warnings
             warnings.warn('psi4 is a non-periodic code, and thus does not '
                           'require k-points. This arguement will be ignored')
 
-        # deal with some ASE specific inputs
-        if 'xc' in self.parameters:
-            if 'method' in self.parameters:
-                if self.parameters['method'].lower() == 'dft':
-                    pass
-                elif self.parameters['method'] == self.parameters['xc']:
-                    pass
-                else:
-                    raise InputError('arguements for both `method` and `xc` were '
-                                     'entered. please enter only one of these. '
-                                     'The same arguments may be entered for both')
-            else:
-                self.parameters['method'] = self.parameters['xc']
+        if self.parameters['xc'].lower() == 'lda':
+            warnings.warn('Psi4 does not have LDA implemented, SVWN will be used instead')
+            self.parameters['xc'] = 'svwn'
+
         if 'nbands' in self.parameters:
             warnings.warn('psi4 does is a quantum chemistry program, and thus does '
                           'not operate on the basis of bands, please select a basis'
@@ -106,6 +124,8 @@ class Psi4(Calculator):
                 return None
             else:
                 atoms = self.atoms 
+        if self.atoms is None:
+            self.atoms = atoms
         # Generate the atomic input
         result = ''
         for atom in atoms:
@@ -113,13 +133,60 @@ class Psi4(Calculator):
             atom.position[0],atom.position[1], \
             atom.position[2])
             result += temp
-        result += '\t symmetry {}\n'.format(self.parameters['symmetry'])
+        result += 'symmetry {}\n'.format(self.parameters['symmetry'])
         result += 'units angstrom\n'
-        result += '{} {}'.format(self.parameters['charge'],
-                                 self.parameters['multiplicity'])
-        self.psi4.core.set_output_file(os.path.join(self.directory, self.label + '.out'),
+        if self.parameters['charge'] is not None and \
+                self.parameters['multiplicity'] is not None:
+            result += '{} {}\n'.format(self.parameters['charge'],
+                                     self.parameters['multiplicity'])
+        if self.parameters['charge'] is not None:
+            result += '{}\n'.format(self.parameters['charge'])
+
+        if self.parameters['multiplicity'] is not None:
+            result += '0 {}\n'.format(self.parameters['multiplicity'])
+        
+
+        if not os.path.isdir(self.directory):
+            os.mkdir(self.directory)
+        self.psi4.core.set_output_file(self.label + '.dat',
                                        False)
         self.molecule = psi4.geometry(result)
+
+    def set(self, **kwargs):
+        changed_parameters = Calculator.set(self, **kwargs)
+        if changed_parameters:
+            self.reset()
+
+    def check_state(self, atoms):
+        system_changes = Calculator.check_state(self, atoms)
+        # Ignore boundary conditions:
+        if 'pbc' in system_changes:
+            system_changes.remove('pbc')
+        # There's no periodicity in psi4
+        if 'cell' in system_changes:
+            system_changes.remove('cell')
+        return system_changes
+    
+    def read(self, label):
+        """Read psi4 outputs made from this ASE calculator
+        """
+        filename = label + '.dat'
+        if not os.path.isfile(filename):
+            raise ReadError('Could not find the psi4 output file: ' + filename)
+
+        f = open(filename, 'r')
+        txt = f.read()
+        f.close()
+
+        if '!ASE Information\n' not in txt:
+            raise Exception('the output file must be made by the ase psi4 '
+                            'interface to be read by it')
+        info = txt.split('!ASE Information\n')[1]
+        saved_dict = pickle.loads(codecs.decode(info.encode(), "base64"))
+        self.atoms = saved_dict['atoms']
+        self.parameters = saved_dict['parameters']
+        self.results = saved_dict['results']
+
 
     def calculate(self, atoms=None, properties=['energy'],
                   system_changes=all_changes, symmetry = 'c1'):
@@ -154,13 +221,16 @@ class Psi4(Calculator):
                 raise InputError('An atoms object must be provided to perform a calculation')
             else:
                 atoms = self.atoms
-        if atoms.get_initial_magnetic_moments().all() != 0:
+        elif self.atoms == None:
+            self.atoms = atoms
+        if atoms.get_initial_magnetic_moments().any() != 0:
             self.parameters['reference'] = 'uhf'
+            self.parameters['multiplicity'] = None
         # this inputs all the settings into psi4
         self.set_psi4(atoms = atoms)
 
         # Set up the method
-        method = self.parameters['method']
+        method = self.parameters['xc']
         basis = self.parameters['basis']
 
         # Do the calculations
@@ -179,4 +249,12 @@ class Psi4(Calculator):
                 # convert to eV/A
                 # also note that the gradient is -1 * forces
                 self.results['forces'] = -1 * np.array(grad) * Hartree * Bohr
-
+        # dump the calculator info to the psi4 file
+        save_atoms = self.atoms.copy()
+        del save_atoms.calc
+        save_dict = {'parameters': self.parameters,
+                     'results': self.results,
+                     'atoms': save_atoms}
+        pickled = codecs.encode(pickle.dumps(save_dict), "base64").decode()
+        self.psi4.core.print_out('!ASE Information\n')
+        self.psi4.core.print_out(pickled)
