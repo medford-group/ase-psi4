@@ -1,0 +1,4 @@
+ase>=3.17
+numpy
+scipy
+spglib
