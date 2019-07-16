@@ -8,9 +8,6 @@ env:
   # Build and test package on all supported python version
   - BUILD_TARGET=3.7
   - BUILD_TARGET=3.6 
-  - BUILD_TARGET=2.7
-  # Smoketest package on conda canary
-  - BUILD_TARGET=3.7 CONDA_CANARY="-c conda-canary"
 
 os:
   - linux
@@ -34,6 +31,8 @@ install:
   - export COVERAGE_DIR=":$HOME/htmlcov"
   - printenv | sort
   - pip install -r requirements.txt
+  - conda install -c psi4 psi4
+  - pip install .
 script:
   - python tests/test.py
   - python tests/h2_test.py
