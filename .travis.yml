@@ -1,38 +1,17 @@
-# Don't use language: python; this gives us an unnecessary virtualenv
-language: c
-# Seems to be needed to prevent hanging in Python 2.7
-# https://github.com/travis-ci/travis-ci/issues/6861
-sudo: required
-
-env:
-  # Build and test package on all supported python version
-  - BUILD_TARGET=3.7
-  - BUILD_TARGET=3.6 
-
-os:
-  - linux
-  - osx
-
-matrix:
-  # conda canary shouldn't block the build, just show us an FYI
-  allow_failures:
-    - env: BUILD_TARGET=3.7 CONDA_CANARY="-c conda-canary"
-
+language: python
+python:
+  - "3.6"
 install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then MINICONDA_OS=Linux; else MINICONDA_OS=MacOSX; fi
-  - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-$MINICONDA_OS-x86_64.sh -O miniconda.sh
-  - bash miniconda.sh -b -p "$HOME"/miniconda
-  - source "$HOME"/miniconda/etc/profile.d/conda.sh
-  - conda config --set always_yes yes --set changeps1 no --set auto_update_conda false
-  # yapf is pinned to help make sure we get the same results here as a user does locally.
-  - conda install -q $CONDA_CANARY -c defaults -c conda-forge conda=4.6 conda-build conda-verify codecov flake8 pep257 yapf==0.25.0
-  - conda info -a
-  - export LANG=en_US.UTF-8
-  - export COVERAGE_DIR=":$HOME/htmlcov"
-  - printenv | sort
-  - pip install -r requirements.txt
-  - conda install -c psi4 psi4
-  - pip install .
+  # Install conda
+  - sudo pip install conda
+  # install deps
+  - sudo conda init
+  - sudo conda update conda --yes
+  - deps='pip numpy pandas requests nose numpydoc sphinx'
+  - conda create -p $HOME/py --yes $deps "python=$TRAVIS_PYTHON_VERSION"
+  - export PATH=$HOME/py/bin:$PATH
+  # install your own package into the environment
+  - python setup.py install
 script:
-  - python tests/test.py
+  - python tests/test.py 
   - python tests/h2_test.py
