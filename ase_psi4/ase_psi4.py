@@ -6,18 +6,12 @@ from ase.calculators.calculator import Calculator, all_properties, all_changes
 from ase.calculators.calculator import InputError, CalculationFailed, SCFError, ReadError 
 import numpy as np
 from ase.units import Bohr, Hartree
-from ase.db.row import atoms2dict, AtomsRow
 import warnings
 import multiprocessing
 import psi4
 import os
-import json
 import pickle
 import codecs
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 
 class Psi4(Calculator):
@@ -241,11 +235,11 @@ class Psi4(Calculator):
                 # convert to eV
                 self.results['energy'] = energy * Hartree
             if item == 'forces':
-                energy = self.psi4.energy('{}/{}'.format(method,basis),
-                                      molecule = self.molecule,)
+                grad, wf = self.psi4.driver.gradient('{}/{}'.format(method,basis),
+                                                 return_wfn=True)
+                # energy comes for free
+                energy = wf.energy()
                 self.results['energy'] = energy * Hartree
-                grad = self.psi4.driver.gradient('{}/{}'.format(method,basis),
-                                                 return_wfn=False,)
                 # convert to eV/A
                 # also note that the gradient is -1 * forces
                 self.results['forces'] = -1 * np.array(grad) * Hartree * Bohr

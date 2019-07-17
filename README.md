@@ -34,7 +34,7 @@ import numpy as np
 atoms = molecule('H2O')
 
 calc = Psi4(atoms = atoms,
-            method = 'b3lyp',
+            xc = 'b3lyp',
             basis = '6-311g_d_p_')
 
 atoms.set_calculator(calc)
@@ -48,16 +48,7 @@ Here is a list of the things you can pass into the `Psi4` ase calculator with th
 
 basis: "aug-cc-pvtz"
 
-method: "hf"
-
-D\_CONVERGENCE: 1e-12
-
-E\_CONVERGENCE: 1e-12
-
-DFT\_BLOCK\_MAX\_POINTS: 500000
-
-DFT\_BLOCK\_MIN\_POINTS: 100000
-MAXITER: 500
+xc: "hf"
 
 charge: 0
 
@@ -65,8 +56,7 @@ multiplicity: 1
 
 symmetry:'c1'
 
-SAVE\_JK: True
-
+num\_threads: None
 
 
 have fun!!
