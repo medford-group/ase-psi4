@@ -242,7 +242,7 @@ class Psi4(Calculator):
                 self.results['energy'] = energy * Hartree
                 # convert to eV/A
                 # also note that the gradient is -1 * forces
-                self.results['forces'] = -1 * np.array(grad) * Hartree * Bohr
+                self.results['forces'] = -1 * np.array(grad) * Hartree / Bohr
         # dump the calculator info to the psi4 file
         save_atoms = self.atoms.copy()
         del save_atoms.calc
