@@ -6,7 +6,7 @@ import numpy as np
 atoms = molecule('H2O')
 atoms[0].position += np.array([0,0,0.1])
 
-calc = Psi4(atoms = atoms,xc = 'mp2', basis = '6-31g**')
+calc = Psi4(atoms = atoms,xc = 'ccsd(t)', basis = '6-31g**')
 
 
 atoms.set_calculator(calc)
@@ -18,7 +18,7 @@ print(atoms.get_potential_energy())
 
 """
 calc = Psi4('psi4-calc')
-print(calc.directory)
+
 print(calc.parameters)
 # test interface with ASE optimizers
 relax = BFGSLineSearch(atoms)
