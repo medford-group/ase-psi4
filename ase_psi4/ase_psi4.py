@@ -31,39 +31,20 @@ class Psi4(Calculator):
     default_parameters = {
                   "basis": "aug-cc-pvtz",
                   "num_threads": None,
-                  #"method": "hf",
                   "xc": "hf",
                   "memory": None,
-                  "D_CONVERGENCE":1e-12,
-                  "E_CONVERGENCE":1e-12,
                   'charge': None,
                   'multiplicity': None,
                   'reference': None,
                   'symmetry':'c1',
-                  'PSI_SCRATCH' : '.',
-                  "SAVE_JK": True, }
+                  'PSI_SCRATCH' : '.',}
     def __init__(self, restart=None, ignore_bad_restart=False,
                  label='psi4-calc', atoms=None, command=None,
                  **kwargs):
         Calculator.__init__(self, restart=restart, ignore_bad_restart=ignore_bad_restart,
                             label=label, atoms=atoms, command=command,
                             **kwargs)
-        """
-        self.results = {}  # calculated properties (energy, forces, ...)
-
-        # Use default parameters if they were not read from file:
-        self.parameters = self.get_default_parameters()
-
-        self.name = 'psi4'
-        if os.sep in label:
-            self.directory = os.path.join(label.split(os.sep)[:-1])
-            self.label = label.split(os.sep)[-1]
-        else:
-            self.set_label(label)
-        self.set(**kwargs)
-        """
         self.psi4 = psi4
-        #self.atoms = atoms
         # perform initial setup of psi4 python API
         self.set_psi4(atoms = atoms)
 
