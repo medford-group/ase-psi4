@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/medford-group/ase-psi4.svg?branch=master)](https://travis-ci.org/medford-group/ase-psi4)
 
-A simple ase calculator for [psi4](http://www.psicode.org/psi4manual/master/index.html). You can load it and instantiate it the way you would any other ase calculator. The implemented methods are `get_forces` and `get_potential_energy`. You can also access the in built psi4 module with `calc.psi4`. This was thrown together rather quickly, so I make no guarantees about it's functionality
+A simple ase calculator for [psi4](http://www.psicode.org/psi4manual/master/index.html). You can load it and instantiate it the way you would any other ase calculator. The implemented methods are `get_forces` and `get_potential_energy`. You can also access the in built psi4 module with `calc.psi4`.
 
 ## Installation
 You'll need psi4 to use this package, the easiest way to get that is with conda:
